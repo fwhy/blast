@@ -1,0 +1,31 @@
+#!/usr/bin/env php
+<?php
+
+if ($argv[1] === 'dev') {
+    $devServer = __DIR__ . '/../src/DevServer.php';
+    $port = getopt('p::', ['port::']) ?: '3000';
+    system("php -S 0.0.0.0:{$port} {$devServer}");
+    exit;
+}
+
+###############################################################################
+
+$autoloads = [__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../../autoload.php'];
+
+foreach ($autoloads as $autoload) {
+    if (file_exists($autoload)) {
+        require_once $autoload;
+        break;
+    }
+}
+
+use Fwhy\Blast\Builder;
+use Fwhy\Blast\Hook;
+
+$builder = new Builder();
+$builder->loadConfig();
+$builder->createDirectories();
+$builder->loadHooks();
+$builder->buildPages();
+$builder->render();
+$builder->output();

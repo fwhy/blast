@@ -1,0 +1,9 @@
+site:
+  name: Blast
+  root: /
+assets: { dir: assets }
+cache: { dir: .cache }
+contents: { dir: contents }
+hooks: { dir: hooks }
+output: { dir: .output }
+theme: { dir: theme }

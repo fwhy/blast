@@ -1,0 +1,35 @@
+{
+    "name": "fwhy/blast",
+    "description": "Static site generator made in PHP",
+    "version": "0.0.1",
+    "keywords": [
+        "ssg",
+        "static site generator"
+    ],
+    "autoload": {
+        "psr-4": {
+            "Fwhy\\Blast\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "fwhy",
+            "email": "prog@fullwidth-hyphen.tech"
+        }
+    ],
+    "require": {
+        "php": ">=8",
+        "cebe/markdown": "~1.2.0",
+        "eftec/bladeone": "^4.4",
+        "pagerange/metaparsedown": "^1.0",
+        "symfony/yaml": "^6.0",
+        "ext-fileinfo": "*"
+    },
+    "bin": [
+        "bin/blast"
+    ],
+    "scripts": {
+        "build": "bin/blast build",
+        "dev": "bin/blast dev -p 3000"
+    }
+}

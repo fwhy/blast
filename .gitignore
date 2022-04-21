@@ -1,0 +1,10 @@
+/.idea/
+
+/.cache/
+/.output/
+/assets/
+/contents/
+/hooks/
+/theme/
+/vendor/
+/blastrc.yml
