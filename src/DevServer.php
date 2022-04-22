@@ -28,7 +28,24 @@ if (!str_ends_with($_SERVER['SCRIPT_NAME'], '/')) {
         exit;
     }
 
-    header('Content-type: ' . mime_content_type($file));
+    $mime =  mime_content_type($file);
+
+    if ($mime === 'text/plain') {
+        switch (pathinfo($file, PATHINFO_EXTENSION)) {
+            case 'css':
+                $mime = 'text/css';
+                break;
+
+            case 'js':
+                $mime = 'text/javascript';
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    header("Content-type: {$mime}");
     echo file_get_contents($file);
     exit;
 }

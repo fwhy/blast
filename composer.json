@@ -1,7 +1,7 @@
 {
     "name": "fwhy/blast",
     "description": "Static site generator made in PHP",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "keywords": [
         "ssg",
         "static site generator"
