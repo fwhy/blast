@@ -120,11 +120,11 @@ class Page
         }
 
         if (isset($this->meta['createDate'])) {
-            $this->createDate = @(new \DateTime($this->meta['createDate']));
+            $this->updateDate = @\DateTime::createFromFormat('U', $this->meta['createDate']);
         }
 
         if (isset($this->meta['updateDate'])) {
-            $this->updateDate = @(new \DateTime($this->meta['updateDate']));
+            $this->updateDate = @\DateTime::createFromFormat('U', $this->meta['updateDate']);
         }
     }
 }
