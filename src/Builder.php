@@ -87,7 +87,7 @@ class Builder
      *
      * @return void
      */
-    public function loadHooks()
+    public function loadHooks(): void
     {
         $hookFiles = $this->dir->getFiles('hooks');
 
@@ -107,6 +107,10 @@ class Builder
             $this->hooks[$class::timing()][] = $class;
         }
 
+        foreach ($this->hooks as &$hook) {
+            usort($hook, fn ($a, $b) => $a::PRIORITY <=> $b::PRIORITY);
+        }
+
         $this->executeHook(Hook::AFTER_LOAD_HOOKS);
     }
 
@@ -121,7 +125,7 @@ class Builder
         $this->dir->clearOutput();
 
         foreach ($this->pages as $name => $page) {
-            $file = $this->dir->output . $page->rawSlug . ((str_ends_with($name, '/')) ? 'index' : '') . '.html';
+            $file = $this->dir->output . $page->rawSlug . ((str_ends_with($name, '/')) ? 'index.html' : '');
             @mkdir(dirname($file), 0777, true);
             file_put_contents($file, $page->html);
         }
@@ -132,9 +136,6 @@ class Builder
     /**
      * Render HTML
      *
-     * @param string|null $pageName
-     * @param string $view
-     * @return string
      * @throws \Exception
      */
     public function render(): void
@@ -154,8 +155,8 @@ class Builder
             ]);
         }
 
-        $this->pages['404'] = new Page('404');
-        $this->pages['404']->html = $blade->run('404', ['pages' => $this->pages, 'config' => $this->config]);
+        $this->pages['404.html'] = new Page('404.html');
+        $this->pages['404.html']->html = $blade->run('404', ['pages' => $this->pages, 'config' => $this->config]);
 
         $this->executeHook(Hook::AFTER_RENDER);
     }

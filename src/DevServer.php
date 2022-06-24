@@ -10,7 +10,7 @@ foreach ($autoloads as $autoload) {
 }
 
 use Fwhy\Blast\Builder;
-use Fwhy\Blast\Hook;
+use Fwhy\Blast\Mime;
 
 $builder = new Builder();
 $builder->loadConfig();
@@ -19,41 +19,22 @@ $builder->loadHooks();
 $builder->buildPages();
 $builder->render();
 
-if (!str_ends_with($_SERVER['SCRIPT_NAME'], '/')) {
-    $file = "{$builder->dir->assets}{$_SERVER['SCRIPT_NAME']}";
+$ext = strtolower(pathinfo($_SERVER['SCRIPT_NAME'], PATHINFO_EXTENSION));
+$mime = ($ext) ? Mime::TYPES[$ext] : 'text/html';
 
-    if (!file_exists($file)) {
-        header('HTTP/1.1 404 Not Found');
-        echo $builder->pages['404']->html;
-        exit;
-    }
+if (array_key_exists($_SERVER['SCRIPT_NAME'], $builder->pages)) {
+    header("Content-type: {$mime}");
+    echo $builder->pages[$_SERVER['SCRIPT_NAME']]->html;
+    exit;
+}
 
-    $mime =  mime_content_type($file);
+$file = "{$builder->dir->assets}{$_SERVER['SCRIPT_NAME']}";
 
-    if ($mime === 'text/plain') {
-        switch (pathinfo($file, PATHINFO_EXTENSION)) {
-            case 'css':
-                $mime = 'text/css';
-                break;
-
-            case 'js':
-                $mime = 'text/javascript';
-                break;
-
-            default:
-                break;
-        }
-    }
-
+if (file_exists($file)) {
     header("Content-type: {$mime}");
     echo file_get_contents($file);
     exit;
 }
 
-if (!isset($builder->pages[$_SERVER['SCRIPT_NAME']])) {
-    header('HTTP/1.1 404 Not Found');
-    echo $builder->pages['404']->html;
-    exit;
-}
-
-echo $builder->pages[$_SERVER['SCRIPT_NAME']]->html;
+header('HTTP/1.1 404 Not Found');
+echo $builder->pages['404']->html;

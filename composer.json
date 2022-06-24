@@ -1,7 +1,7 @@
 {
     "name": "fwhy/blast",
     "description": "Static site generator made in PHP",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "keywords": [
         "ssg",
         "static site generator"
@@ -21,12 +21,11 @@
         }
     ],
     "require": {
-        "php": ">=8",
-        "cebe/markdown": "~1.2.0",
-        "eftec/bladeone": "^4.4",
-        "pagerange/metaparsedown": "^1.0",
-        "symfony/yaml": "^6.0",
-        "ext-fileinfo": "*"
+        "php": ">=8.1",
+        "cebe/markdown": "~1.2.1",
+        "eftec/bladeone": "^4.5.3",
+        "pagerange/metaparsedown": "^1.0.9",
+        "symfony/yaml": "^6.1.0"
     },
     "bin": [
         "bin/blast"
