@@ -37,4 +37,4 @@ if (file_exists($file)) {
 }
 
 header('HTTP/1.1 404 Not Found');
-echo $builder->pages['404']->html;
+echo $builder->pages['404.html']->html;
