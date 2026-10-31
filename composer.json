@@ -14,6 +14,11 @@
             "Fwhy\\Blast\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Fwhy\\Blast\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "fwhy",
@@ -31,6 +36,22 @@
     ],
     "scripts": {
         "build": "bin/blast build",
-        "dev": "bin/blast dev -p 3000"
+        "dev": "bin/blast dev -p 3000",
+        "test": "vendor/bin/pest",
+        "phpstan": "vendor/bin/phpstan analyse",
+        "check": [
+            "@phpstan",
+            "@test"
+        ]
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.4",
+        "phpstan/phpstan": "^2.3",
+        "pestphp/pest": "^5.3"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
     }
 }

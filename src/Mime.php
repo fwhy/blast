@@ -4,7 +4,7 @@ namespace Fwhy\Blast;
 
 class Mime
 {
-    const TYPES = [
+    const array TYPES = [
         '3gp' => 'video/3gpp',
         '3gpp' => 'video/3gpp',
         '7z' => 'application/x-7z-compressed',
