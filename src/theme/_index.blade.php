@@ -6,7 +6,8 @@
 
     @foreach($pages as $n => $p)
         @continue(!str_ends_with($n, '/'))
-        <li data-icon="<span class='mif-file-code'>"
+        @php($icon = $p->updateDate ? 'mif-file-text' : 'mif-folder')
+        <li data-icon="<span class='{{$icon}}'>"
             data-caption="{{$p->rawSlug}}"
             data-name="{{$p->title}}"
             data-date="{{$p->updateDate?->format('Y-m-d')}}"
