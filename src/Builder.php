@@ -2,30 +2,108 @@
 
 namespace Fwhy\Blast;
 
-use eftec\bladeone\BladeOne;
-use FilesystemIterator;
+use Fwhy\Blast\Event\AfterBuildPagesEvent;
+use Fwhy\Blast\Event\AfterLoadHooksEvent;
+use Fwhy\Blast\Event\AfterRenderEvent;
+use Fwhy\Blast\Event\BeforeRenderEvent;
+use Fwhy\Blast\Event\EventDispatcher;
+use Fwhy\Blast\Event\PostBuildEvent;
+use Fwhy\Blast\Exception\ConfigException;
+use Fwhy\Blast\Exception\DirectoryException;
 use Fwhy\Blast\Models\Page;
-use JetBrains\PhpStorm\ArrayShape;
+use Fwhy\Blast\Parser\PageFactory;
+use Fwhy\Blast\Renderer\BladeRenderer;
+use Fwhy\Blast\Renderer\TemplateRendererInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
  * Builder
  *
- * @property array $config
+ * @property array<string, mixed> $config
  * @property Page[] $pages
  * @property Directory $dir
  */
 class Builder
 {
-    /** @var array */
+    /** @var array<string, mixed> */
     public array $config = [];
     /** @var Directory */
     public Directory $dir;
-    /** @var array */
+    /** @var array<int, array<class-string<Hook>>> */
     public array $hooks = [];
     /** @var Page[] */
     public array $pages = [];
+    /** @var PageFactory */
+    private PageFactory $pageFactory;
+    /** @var EventDispatcherInterface */
+    private EventDispatcherInterface $eventDispatcher;
+    /** @var TemplateRendererInterface|null */
+    private ?TemplateRendererInterface $renderer = null;
+
+    /**
+     * Constructor
+     *
+     * @param PageFactory|null $pageFactory
+     * @param EventDispatcherInterface|null $eventDispatcher
+     * @param TemplateRendererInterface|null $renderer
+     */
+    public function __construct(
+        ?PageFactory $pageFactory = null,
+        ?EventDispatcherInterface $eventDispatcher = null,
+        ?TemplateRendererInterface $renderer = null
+    ) {
+        $this->pageFactory = $pageFactory ?? new PageFactory();
+        $this->eventDispatcher = $eventDispatcher ?? new EventDispatcher();
+        $this->renderer = $renderer;
+    }
+
+    /**
+     * Get event dispatcher
+     *
+     * @return EventDispatcherInterface
+     */
+    public function getEventDispatcher(): EventDispatcherInterface
+    {
+        return $this->eventDispatcher;
+    }
+
+    /**
+     * Set event dispatcher
+     *
+     * @param EventDispatcherInterface $eventDispatcher
+     * @return void
+     */
+    public function setEventDispatcher(EventDispatcherInterface $eventDispatcher): void
+    {
+        $this->eventDispatcher = $eventDispatcher;
+    }
+
+    /**
+     * Get template renderer
+     *
+     * @return TemplateRendererInterface
+     */
+    public function getRenderer(): TemplateRendererInterface
+    {
+        if ($this->renderer === null) {
+            $this->renderer = new BladeRenderer($this->dir->theme, $this->dir->cache);
+        }
+
+        return $this->renderer;
+    }
+
+    /**
+     * Set template renderer
+     *
+     * @param TemplateRendererInterface $renderer
+     * @return void
+     */
+    public function setRenderer(TemplateRendererInterface $renderer): void
+    {
+        $this->renderer = $renderer;
+    }
 
     /**
      * Build pages
@@ -38,11 +116,12 @@ class Builder
         $mdFiles = $this->dir->getFiles('contents');
 
         foreach ($mdFiles as $mdFile) {
-            $page = Page::build($mdFile, $this->dir->contents);
+            $page = $this->pageFactory->createFromFile($mdFile, $this->dir->contents);
             $this->pages[$page->rawSlug] = $page;
         }
 
         ksort($this->pages);
+        $this->eventDispatcher->dispatch(new AfterBuildPagesEvent($this));
         $this->executeHook(Hook::AFTER_BUILD_PAGES);
     }
 
@@ -50,8 +129,9 @@ class Builder
      * Create directories
      *
      * @return void
+     * @throws DirectoryException
      */
-    public function createDirectories()
+    public function createDirectories(): void
     {
         $this->dir->createDirectories();
     }
@@ -60,25 +140,39 @@ class Builder
      * Load config
      *
      * @return void
-     * @throws ParseException
+     * @throws ConfigException
      */
-    public function loadConfig()
+    public function loadConfig(): void
     {
-        $baseDir = realpath('');
-        $this->config = Yaml::parseFile(__DIR__ . '/blastrc.yml');
-        $config = (file_exists("{$baseDir}/blastrc.yml")) ?
-            (@Yaml::parseFile("{$baseDir}/blastrc.yml") ?? [])
-            : [];
-        $this->config = array_replace_recursive($this->config, $config);
+        $baseDir = realpath('') ?: getcwd() ?: '';
+
+        try {
+            $defaultConfig = Yaml::parseFile(__DIR__ . '/blastrc.yml');
+            $this->config = is_array($defaultConfig) ? $defaultConfig : [];
+        } catch (ParseException $e) {
+            throw new ConfigException("Failed to parse default config file: " . $e->getMessage(), 0, $e);
+        }
+
+        $userConfigFile = "{$baseDir}/blastrc.yml";
+        if (file_exists($userConfigFile)) {
+            try {
+                $userConfig = Yaml::parseFile($userConfigFile);
+                if (is_array($userConfig)) {
+                    $this->config = array_replace_recursive($this->config, $userConfig);
+                }
+            } catch (ParseException $e) {
+                throw new ConfigException("Failed to parse user config file: {$userConfigFile} - " . $e->getMessage(), 0, $e);
+            }
+        }
 
         $this->dir = new Directory(
             $baseDir,
-            $this->config['assets']['dir'],
-            $this->config['cache']['dir'],
-            $this->config['contents']['dir'],
-            $this->config['hooks']['dir'],
-            $this->config['output']['dir'],
-            $this->config['theme']['dir'],
+            $this->config['assets']['dir'] ?? 'assets',
+            $this->config['cache']['dir'] ?? '.cache',
+            $this->config['contents']['dir'] ?? 'contents',
+            $this->config['hooks']['dir'] ?? 'hooks',
+            $this->config['output']['dir'] ?? '.output',
+            $this->config['theme']['dir'] ?? 'theme',
         );
     }
 
@@ -86,6 +180,7 @@ class Builder
      * Load hooks
      *
      * @return void
+     * @throws DirectoryException
      */
     public function loadHooks(): void
     {
@@ -111,6 +206,7 @@ class Builder
             usort($hook, fn ($a, $b) => $a::PRIORITY <=> $b::PRIORITY);
         }
 
+        $this->eventDispatcher->dispatch(new AfterLoadHooksEvent($this));
         $this->executeHook(Hook::AFTER_LOAD_HOOKS);
     }
 
@@ -124,13 +220,15 @@ class Builder
     {
         $this->dir->clearOutput();
 
+        $filesystem = $this->dir->getFilesystem();
         foreach ($this->pages as $name => $page) {
             $file = $this->dir->output . $page->rawSlug . ((str_ends_with($name, '/')) ? 'index.html' : '');
-            @mkdir(dirname($file), 0777, true);
-            file_put_contents($file, $page->html);
+            $filesystem->writeFile($file, $page->html);
         }
 
         $this->dir->copyAssets();
+
+        $this->eventDispatcher->dispatch(new PostBuildEvent($this));
     }
 
     /**
@@ -140,24 +238,23 @@ class Builder
      */
     public function render(): void
     {
-        $blade = new BladeOne($this->dir->theme, $this->dir->cache, BladeOne::MODE_AUTO);
+        $renderer = $this->getRenderer();
 
         if (!isset($this->pages['/'])) {
             $this->pages['/'] = new Page();
             ksort($this->pages);
         }
 
+        $this->eventDispatcher->dispatch(new BeforeRenderEvent($this));
+
         foreach ($this->pages as $page) {
-            $page->html = $blade->run('page', [
-                'page' => $page,
-                'pages' => $this->pages,
-                'config' => $this->config,
-            ]);
+            $page->html = $renderer->renderPage($page, $this->pages, $this->config);
         }
 
         $this->pages['404.html'] = new Page('404.html');
-        $this->pages['404.html']->html = $blade->run('404', ['pages' => $this->pages, 'config' => $this->config]);
+        $this->pages['404.html']->html = $renderer->render('404', ['pages' => $this->pages, 'config' => $this->config]);
 
+        $this->eventDispatcher->dispatch(new AfterRenderEvent($this));
         $this->executeHook(Hook::AFTER_RENDER);
     }
 

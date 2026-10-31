@@ -2,6 +2,10 @@
 
 namespace Fwhy\Blast;
 
+use Fwhy\Blast\Exception\DirectoryException;
+use Fwhy\Blast\Filesystem\DirectoryPaths;
+use Fwhy\Blast\Filesystem\FilesystemManager;
+
 /**
  * Directory
  *
@@ -36,6 +40,9 @@ class Directory
     /** @var string */
     private string $theme;
 
+    private DirectoryPaths $paths;
+    private FilesystemManager $filesystem;
+
     /**
      * Constructor
      *
@@ -46,6 +53,7 @@ class Directory
      * @param string $hooks
      * @param string $output
      * @param string $theme
+     * @param FilesystemManager|null $filesystem
      */
     public function __construct(
         string $base,
@@ -54,9 +62,9 @@ class Directory
         string $contents,
         string $hooks,
         string $output,
-        string $theme
-    )
-    {
+        string $theme,
+        ?FilesystemManager $filesystem = null
+    ) {
         $this->base = $base;
         $this->assets = $assets;
         $this->cache = $cache;
@@ -64,62 +72,60 @@ class Directory
         $this->hooks = $hooks;
         $this->output = $output;
         $this->theme = $theme;
+
+        $this->paths = new DirectoryPaths(
+            base: $base,
+            assets: $assets,
+            cache: $cache,
+            contents: $contents,
+            hooks: $hooks,
+            output: $output,
+            theme: $theme
+        );
+        $this->filesystem = $filesystem ?? new FilesystemManager();
     }
 
     /**
      * Create directories
      *
      * @return void
+     * @throws DirectoryException
      */
     public function createDirectories(): void
     {
-        @mkdir("{$this->base}/{$this->theme}", 0777, true);
-        @mkdir("{$this->get('assets')}", 0777, true);
-        @mkdir("{$this->get('cache')}/theme", 0777, true);
-        @mkdir("{$this->get('contents')}", 0777, true);
-        @mkdir("{$this->get('hooks')}", 0777, true);
-        @mkdir("{$this->get('output')}", 0777, true);
-        @mkdir("{$this->get('theme')}", 0777, true);
+        $this->filesystem->ensureDirectoryExists($this->paths->resolvePath($this->theme));
+        $this->filesystem->ensureDirectoryExists($this->paths->getAssetsPath());
+        $this->filesystem->ensureDirectoryExists($this->paths->getCachePath() . '/theme');
+        $this->filesystem->ensureDirectoryExists($this->paths->getContentsPath());
+        $this->filesystem->ensureDirectoryExists($this->paths->getHooksPath());
+        $this->filesystem->ensureDirectoryExists($this->paths->getOutputPath());
+        $this->filesystem->ensureDirectoryExists($this->paths->getThemePath());
     }
 
     /**
      * Clear output directory
      *
      * @return void
+     * @throws DirectoryException
      */
     public function clearOutput(): void
     {
-        $rdIterator = new \RecursiveDirectoryIterator($this->get('output'), \FilesystemIterator::SKIP_DOTS);
-        $riIterator = new \RecursiveIteratorIterator($rdIterator, \RecursiveIteratorIterator::CHILD_FIRST);
-
-        foreach ($riIterator as $fileInfo) {
-            if ($fileInfo->isDir()) {
-                rmdir($fileInfo->getPathname());
-            } else {
-                unlink($fileInfo->getPathname());
-            }
-        }
+        $this->filesystem->clearDirectory($this->paths->getOutputPath());
     }
 
     /**
      * Copy asset files
      *
      * @return void
+     * @throws DirectoryException
+     * @throws \Fwhy\Blast\Exception\FileException
      */
     public function copyAssets(): void
     {
-        $rdIterator = new \RecursiveDirectoryIterator($this->get('assets'), \FilesystemIterator::SKIP_DOTS);
-        $riIterator = new \RecursiveIteratorIterator($rdIterator, \RecursiveIteratorIterator::SELF_FIRST);
-
-        foreach ($riIterator as $fileInfo) {
-            $outputAssets = str_replace($this->get('assets'), $this->get('output'), $fileInfo->getPathname());
-
-            if ($fileInfo->isDir()) {
-                @mkdir($outputAssets, 0777, true);
-            } else {
-                copy($fileInfo->getPathname(), $outputAssets);
-            }
-        }
+        $this->filesystem->copyDirectory(
+            $this->paths->getAssetsPath(),
+            $this->paths->getOutputPath()
+        );
     }
 
     /**
@@ -127,19 +133,32 @@ class Directory
      *
      * @param string $dirName
      * @return string[]
+     * @throws DirectoryException
      */
     public function getFiles(string $dirName): array
     {
         $dir = $this->get($dirName);
-        $files = [];
+        return $this->filesystem->getFiles($dir);
+    }
 
-        $rdIterator = new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS);
+    /**
+     * Get underlying DirectoryPaths instance
+     *
+     * @return DirectoryPaths
+     */
+    public function getPaths(): DirectoryPaths
+    {
+        return $this->paths;
+    }
 
-        foreach (new \RecursiveIteratorIterator($rdIterator) as $fileInfo) {
-            $files[] = $fileInfo->getPathname();
-        }
-
-        return $files;
+    /**
+     * Get underlying FilesystemManager instance
+     *
+     * @return FilesystemManager
+     */
+    public function getFilesystem(): FilesystemManager
+    {
+        return $this->filesystem;
     }
 
     /**
@@ -151,7 +170,7 @@ class Directory
     public function __get(string $key): string
     {
         return match ($key) {
-            'theme' => $this->getTheme(),
+            'theme' => $this->paths->getThemePath(),
             default => $this->get($key),
         };
     }
@@ -171,17 +190,5 @@ class Directory
         }
 
         return "{$this->base}/{$this->$key}";
-    }
-
-    /**
-     * Get theme dir path
-     *
-     * @return string
-     */
-    private function getTheme(): string
-    {
-        $page = "{$this->get('theme')}/page.blade.php";
-
-        return (file_exists($page)) ? $this->get('theme') : (__DIR__ . '/theme');
     }
 }

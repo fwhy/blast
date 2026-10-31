@@ -14,6 +14,11 @@
             "Fwhy\\Blast\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Fwhy\\Blast\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "fwhy",
@@ -21,17 +26,32 @@
         }
     ],
     "require": {
-        "php": ">=8.1",
-        "cebe/markdown": "~1.2.1",
-        "eftec/bladeone": "^4.5.3",
-        "pagerange/metaparsedown": "^1.0.9",
-        "symfony/yaml": "^6.1.0"
+        "php": ">=8.5",
+        "eftec/bladeone": "^5",
+        "symfony/yaml": "^8",
+        "league/commonmark": "^2.10"
     },
     "bin": [
         "bin/blast"
     ],
     "scripts": {
         "build": "bin/blast build",
-        "dev": "bin/blast dev -p 3000"
+        "dev": "bin/blast dev -p 3000",
+        "test": "vendor/bin/pest",
+        "phpstan": "vendor/bin/phpstan analyse",
+        "check": [
+            "@phpstan",
+            "@test"
+        ]
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.4",
+        "phpstan/phpstan": "^2.3",
+        "pestphp/pest": "^5.3"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
     }
 }
