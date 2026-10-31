@@ -2,8 +2,9 @@
 
 namespace Fwhy\Blast\Models;
 
-use cebe\markdown\GithubMarkdown;
-use Pagerange\Markdown\MetaParsedown;
+use League\CommonMark\Extension\FrontMatter\Data\SymfonyYamlFrontMatterParser;
+use League\CommonMark\Extension\FrontMatter\FrontMatterParser;
+use League\CommonMark\GithubFlavoredMarkdownConverter;
 
 /**
  * Page
@@ -72,12 +73,14 @@ class Page
         $search = '/' . preg_quote($basePath, '/') . '/';
         $page->relPath = preg_replace($search, '', $page->fullPath, 1);
 
-        $mp = new MetaParsedown();
+        $frontMatterParser = new FrontMatterParser(new SymfonyYamlFrontMatterParser());
         $fullRawContent = file_get_contents($page->fullPath);
-        $page->meta = (array)$mp->meta($fullRawContent);
-        $page->rawContent = $mp->stripMeta($fullRawContent);
+        $parsed = $frontMatterParser->parse($fullRawContent);
 
-        $page->content = (new GithubMarkdown())->parse($page->rawContent);
+        $page->meta = (array)($parsed->getFrontMatter() ?? []);
+        $page->rawContent = $parsed->getContent();
+
+        $page->content = (string)(new GithubFlavoredMarkdownConverter())->convert($page->rawContent);
 
         if (preg_match('/<h1>(.+)<\/h1>/', $page->content, $h1)) {
             $page->title = $h1[1];

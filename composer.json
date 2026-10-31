@@ -21,11 +21,10 @@
         }
     ],
     "require": {
-        "php": ">=8.1",
-        "cebe/markdown": "~1.2.1",
-        "eftec/bladeone": "^4.5.3",
-        "pagerange/metaparsedown": "^1.0.9",
-        "symfony/yaml": "^6.1.0"
+        "php": ">=8.5",
+        "eftec/bladeone": "^5",
+        "symfony/yaml": "^8",
+        "league/commonmark": "^2.10"
     },
     "bin": [
         "bin/blast"
